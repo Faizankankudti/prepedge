@@ -16,3 +16,16 @@ class User(UserMixin, db.Model):
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+
+
+class Question(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    category = db.Column(db.String(50), nullable=False)  # Quantitative, Logical, Verbal
+    company = db.Column(db.String(50), nullable=True, default='General')  # TCS, Infosys, Wipro, etc.
+    question_text = db.Column(db.Text, nullable=False)
+    option_a = db.Column(db.String(200), nullable=False)
+    option_b = db.Column(db.String(200), nullable=False)
+    option_c = db.Column(db.String(200), nullable=False)
+    option_d = db.Column(db.String(200), nullable=False)
+    correct_option = db.Column(db.String(1), nullable=False)  # 'A', 'B', 'C', or 'D'
+    explanation = db.Column(db.Text, nullable=True)

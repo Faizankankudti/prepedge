@@ -1,6 +1,7 @@
 from flask import Flask, render_template, redirect, url_for, flash, request
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
-from models import db, User
+from models import db, User, Question
+from functools import wraps
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'prepedge-secret-key-change-in-prod'
@@ -14,6 +15,15 @@ login_manager.login_view = 'login'
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
+
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated or current_user.role != 'admin':
+            flash('Admin authorization required.', 'danger')
+            return redirect(url_for('dashboard'))
+        return f(*args, **kwargs)
+    return decorated_function
 
 with app.app_context():
     db.create_all()
@@ -68,7 +78,47 @@ def login():
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    return render_template('dashboard.html')
+    total_questions = Question.query.count() if current_user.role == 'admin' else 0
+    return render_template('dashboard.html', total_questions=total_questions)
+
+@app.route('/admin/questions')
+@login_required
+@admin_required
+def admin_questions():
+    questions = Question.query.all()
+    return render_template('admin_questions.html', questions=questions)
+
+@app.route('/admin/questions/add', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def add_question():
+    if request.method == 'POST':
+        q = Question(
+            category=request.form.get('category'),
+            company=request.form.get('company', 'General').strip(),
+            question_text=request.form.get('question_text').strip(),
+            option_a=request.form.get('option_a').strip(),
+            option_b=request.form.get('option_b').strip(),
+            option_c=request.form.get('option_c').strip(),
+            option_d=request.form.get('option_d').strip(),
+            correct_option=request.form.get('correct_option'),
+            explanation=request.form.get('explanation').strip()
+        )
+        db.session.add(q)
+        db.session.commit()
+        flash('Question added successfully!', 'success')
+        return redirect(url_for('admin_questions'))
+    return render_template('add_question.html')
+
+@app.route('/admin/questions/delete/<int:q_id>', methods=['POST'])
+@login_required
+@admin_required
+def delete_question(q_id):
+    q = Question.query.get_or_404(q_id)
+    db.session.delete(q)
+    db.session.commit()
+    flash('Question deleted successfully.', 'info')
+    return redirect(url_for('admin_questions'))
 
 @app.route('/logout')
 @login_required

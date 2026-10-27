@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Admin Question Bank</h2>
+    <a href="{{ url_for('add_question') }}" class="btn btn-success">+ Add New Question</a>
+</div>
+
+{% if questions %}
+<div class="table-responsive">
+    <table class="table table-striped table-hover bg-white shadow-sm rounded">
+        <thead class="table-dark">
+            <tr>
+                <th>ID</th>
+                <th>Category</th>
+                <th>Company</th>
+                <th>Question</th>
+                <th>Correct Ans</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for q in questions %}
+            <tr>
+                <td>{{ q.id }}</td>
+                <td><span class="badge bg-secondary">{{ q.category }}</span></td>
+                <td><span class="badge bg-info text-dark">{{ q.company }}</span></td>
+                <td>{{ q.question_text[:60] }}...</td>
+                <td><strong>Option {{ q.correct_option }}</strong></td>
+                <td>
+                    <form action="{{ url_for('delete_question', q_id=q.id) }}" method="POST" onsubmit="return confirm('Delete this question?');" class="d-inline">
+                        <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="alert alert-info">No questions added yet. Click "+ Add New Question" to add your first question!</div>
+{% endif %}
+{% endblock %}
