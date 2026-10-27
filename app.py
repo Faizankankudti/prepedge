@@ -1,6 +1,6 @@
 from flask import Flask, render_template, redirect, url_for, flash, request
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
-from models import db, User, Question
+from models import db, User, Question, TestResult
 from functools import wraps
 
 app = Flask(__name__)
@@ -79,7 +79,8 @@ def login():
 @login_required
 def dashboard():
     total_questions = Question.query.count() if current_user.role == 'admin' else 0
-    return render_template('dashboard.html', total_questions=total_questions)
+    recent_tests = TestResult.query.filter_by(user_id=current_user.id).order_by(TestResult.date_taken.desc()).limit(5).all()
+    return render_template('dashboard.html', total_questions=total_questions, recent_tests=recent_tests)
 
 @app.route('/admin/questions')
 @login_required
@@ -119,6 +120,59 @@ def delete_question(q_id):
     db.session.commit()
     flash('Question deleted successfully.', 'info')
     return redirect(url_for('admin_questions'))
+
+# --- SPRINT 3: TEST ENGINE & EVALUATION ---
+@app.route('/tests')
+@login_required
+def test_selection():
+    categories = db.session.query(Question.category).distinct().all()
+    category_list = [c[0] for c in categories]
+    return render_template('test_selection.html', categories=category_list)
+
+@app.route('/test/start/<category>')
+@login_required
+def start_test(category):
+    questions = Question.query.filter_by(category=category).all()
+    if not questions:
+        flash(f'No questions available for {category}.', 'warning')
+        return redirect(url_for('test_selection'))
+    # 2 minutes per test for practice
+    time_limit_minutes = 2
+    return render_template('take_test.html', category=category, questions=questions, time_limit=time_limit_minutes)
+
+@app.route('/test/submit/<category>', methods=['POST'])
+@login_required
+def submit_test(category):
+    questions = Question.query.filter_by(category=category).all()
+    score = 0
+    total = len(questions)
+    review_data = []
+
+    for q in questions:
+        selected_option = request.form.get(f'question_{q.id}')
+        is_correct = (selected_option == q.correct_option)
+        if is_correct:
+            score += 1
+        
+        review_data.append({
+            'question': q,
+            'selected': selected_option,
+            'is_correct': is_correct
+        })
+
+    percentage = round((score / total) * 100, 2) if total > 0 else 0
+
+    result = TestResult(
+        user_id=current_user.id,
+        category=category,
+        total_questions=total,
+        score=score,
+        percentage=percentage
+    )
+    db.session.add(result)
+    db.session.commit()
+
+    return render_template('test_result.html', category=category, score=score, total=total, percentage=percentage, review_data=review_data)
 
 @app.route('/logout')
 @login_required

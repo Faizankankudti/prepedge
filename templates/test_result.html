@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card shadow-sm mb-4 text-center p-4">
+    <h2>Test Results: {{ category }}</h2>
+    <div class="my-3">
+        <span class="display-4 fw-bold {% if percentage >= 60 %}text-success{% else %}text-danger{% endif %}">{{ score }}/{{ total }}</span>
+        <h4>({{ percentage }}%)</h4>
+    </div>
+    <div>
+        <a href="{{ url_for('test_selection') }}" class="btn btn-primary">Take Another Test</a>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">Go to Dashboard</a>
+    </div>
+</div>
+
+<h3 class="mb-3">Solutions & Explanations</h3>
+
+{% for item in review_data %}
+<div class="card shadow-sm mb-3 border-{% if item.is_correct %}success{% else %}danger{% endif %}">
+    <div class="card-header bg-{% if item.is_correct %}success{% else %}danger{% endif %} text-white">
+        <strong>Q{{ loop.index }}. {{ item.question.question_text }}</strong>
+    </div>
+    <div class="card-body">
+        <p><strong>Your Answer:</strong> Option {{ item.selected if item.selected else 'None' }} 
+            {% if item.is_correct %}<span class="badge bg-success">Correct</span>{% else %}<span class="badge bg-danger">Incorrect</span>{% endif %}
+        </p>
+        <p><strong>Correct Answer:</strong> Option {{ item.question.correct_option }}</p>
+        
+        <div class="bg-light p-3 rounded">
+            <strong>Explanation:</strong>
+            <p class="mb-0">{{ item.question.explanation if item.question.explanation else 'No step-by-step explanation provided.' }}</p>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endblock %}
