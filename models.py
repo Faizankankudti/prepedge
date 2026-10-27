@@ -1,6 +1,7 @@
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import datetime
 
 db = SQLAlchemy()
 
@@ -9,7 +10,7 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
-    role = db.Column(db.String(20), nullable=False, default='student')  # 'student' or 'admin'
+    role = db.Column(db.String(20), nullable=False, default='student')
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -20,12 +21,24 @@ class User(UserMixin, db.Model):
 
 class Question(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    category = db.Column(db.String(50), nullable=False)  # Quantitative, Logical, Verbal
-    company = db.Column(db.String(50), nullable=True, default='General')  # TCS, Infosys, Wipro, etc.
+    category = db.Column(db.String(50), nullable=False)
+    company = db.Column(db.String(50), nullable=True, default='General')
     question_text = db.Column(db.Text, nullable=False)
     option_a = db.Column(db.String(200), nullable=False)
     option_b = db.Column(db.String(200), nullable=False)
     option_c = db.Column(db.String(200), nullable=False)
     option_d = db.Column(db.String(200), nullable=False)
-    correct_option = db.Column(db.String(1), nullable=False)  # 'A', 'B', 'C', or 'D'
+    correct_option = db.Column(db.String(1), nullable=False)
     explanation = db.Column(db.Text, nullable=True)
+
+
+class TestResult(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    category = db.Column(db.String(50), nullable=False)
+    total_questions = db.Column(db.Integer, nullable=False)
+    score = db.Column(db.Integer, nullable=False)
+    percentage = db.Column(db.Float, nullable=False)
+    date_taken = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship('User', backref=db.backref('test_results', lazy=True))

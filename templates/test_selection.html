@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2 class="mb-4">Select Practice Test Category</h2>
+
+{% if categories %}
+<div class="row">
+    {% for cat in categories %}
+    <div class="col-md-4 mb-3">
+        <div class="card shadow-sm h-100">
+            <div class="card-body text-center d-flex flex-column justify-content-between">
+                <div>
+                    <h4 class="card-title text-primary">{{ cat }}</h4>
+                    <p class="text-muted">Timed test with auto-evaluation and full step-by-step solutions.</p>
+                </div>
+                <a href="{{ url_for('start_test', category=cat) }}" class="btn btn-primary mt-3">Start {{ cat }} Test</a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="alert alert-warning">No test categories available yet. Admin needs to add questions to the Question Bank first!</div>
+{% endif %}
+{% endblock %}
