@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="p-5 mb-4 bg-white rounded-3 shadow-sm">
+    <div class="container-fluid py-3">
+        <h1 class="display-5 fw-bold">Welcome, {{ current_user.username }}!</h1>
+        <p class="col-md-8 fs-4 text-muted">Role: <span class="badge bg-info text-dark">{{ current_user.role|capitalize }}</span></p>
+        <hr class="my-4">
+        <p>PrepEdge features (Aptitude Tests, Performance Dashboard, Company Sets) will load here based on your role.</p>
+    </div>
+</div>
+{% endblock %}
