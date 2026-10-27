@@ -5,7 +5,16 @@
         <h1 class="display-5 fw-bold">Welcome, {{ current_user.username }}!</h1>
         <p class="col-md-8 fs-4 text-muted">Role: <span class="badge bg-info text-dark">{{ current_user.role|capitalize }}</span></p>
         <hr class="my-4">
-        <p>PrepEdge features (Aptitude Tests, Performance Dashboard, Company Sets) will load here based on your role.</p>
+        
+        {% if current_user.role == 'admin' %}
+            <div class="alert alert-primary">
+                <h5>Admin Control Panel</h5>
+                <p>Total Questions in Database: <strong>{{ total_questions }}</strong></p>
+                <a href="{{ url_for('admin_questions') }}" class="btn btn-primary">Manage Question Bank</a>
+            </div>
+        {% else %}
+            <p>Student Portal: Upcoming Sprints will unlock Timed Tests and Performance Analytics.</p>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

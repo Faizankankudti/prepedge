@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">Add New Aptitude Question</h4>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Category</label>
+                            <select name="category" class="form-select" required>
+                                <option value="Quantitative">Quantitative</option>
+                                <option value="Logical Reasoning">Logical Reasoning</option>
+                                <option value="Verbal Ability">Verbal Ability</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Company Tag</label>
+                            <input type="text" name="company" class="form-control" placeholder="e.g., TCS, Infosys, Wipro, General" required>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Question Text</label>
+                        <textarea name="question_text" class="form-control" rows="3" required></textarea>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label">Option A</label>
+                            <input type="text" name="option_a" class="form-control" required>
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label">Option B</label>
+                            <input type="text" name="option_b" class="form-control" required>
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label">Option C</label>
+                            <input type="text" name="option_c" class="form-control" required>
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label">Option D</label>
+                            <input type="text" name="option_d" class="form-control" required>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Correct Option</label>
+                        <select name="correct_option" class="form-select" required>
+                            <option value="A">Option A</option>
+                            <option value="B">Option B</option>
+                            <option value="C">Option C</option>
+                            <option value="D">Option D</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Explanation</label>
+                        <textarea name="explanation" class="form-control" rows="2" placeholder="Step-by-step solution explanation"></textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-success w-100">Save Question</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
