@@ -1,3 +1,4 @@
+import os
 from flask import Flask, render_template, redirect, url_for, flash, request
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from models import db, User, Question, TestResult
@@ -6,7 +7,13 @@ from sqlalchemy import func
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'prepedge-secret-key-change-in-prod'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///prepedge.db'
+
+# Use writable /tmp directory on Vercel serverless environment, local SQLite path otherwise
+if os.environ.get('VERCEL'):
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////tmp/prepedge.db'
+else:
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///prepedge.db'
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db.init_app(app)
@@ -261,7 +268,6 @@ def submit_company_test(company):
 @app.route('/leaderboard')
 @login_required
 def leaderboard():
-    # Query student stats aggregating total tests, total score, total potential score, and average accuracy
     leaderboard_query = db.session.query(
         User.username,
         func.count(TestResult.id).label('tests_taken'),
