@@ -11,12 +11,12 @@ app.config['SECRET_KEY'] = 'prepedge-secret-key-change-in-prod'
 # Super Admin Passcode
 ADMIN_SECRET_KEY = os.environ.get('ADMIN_SECRET_KEY', 'PREPEDGE_ADMIN_2026')
 
-# Database Configuration
+# Clean Database Connection String for psycopg2
 db_url = os.environ.get('DATABASE_URL')
 if db_url:
     if db_url.startswith("postgres://"):
         db_url = db_url.replace("postgres://", "postgresql://", 1)
-    # Strip parameters that break psycopg2 SSL handshake on Vercel lambda
+    # Strip unnecessary connection options that disrupt Vercel Serverless handshake
     if "?" in db_url:
         base_url = db_url.split("?")[0]
         db_url = f"{base_url}?sslmode=require"
@@ -25,10 +25,6 @@ else:
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///prepedge.db'
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    "pool_pre_ping": True,
-    "pool_recycle": 300,
-}
 
 db.init_app(app)
 login_manager = LoginManager(app)
@@ -47,15 +43,14 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-# Create tables before first request handling
 @app.before_request
-def create_tables():
-    if not getattr(app, '_database_initialized', False):
+def initialize_database():
+    if not getattr(app, '_db_created', False):
         try:
             db.create_all()
-            app._database_initialized = True
+            app._db_created = True
         except Exception as e:
-            print("DB init error:", e)
+            print("Database creation error:", e)
 
 @app.route('/')
 def home():
