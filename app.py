@@ -79,8 +79,32 @@ def login():
 @login_required
 def dashboard():
     total_questions = Question.query.count() if current_user.role == 'admin' else 0
-    recent_tests = TestResult.query.filter_by(user_id=current_user.id).order_by(TestResult.date_taken.desc()).limit(5).all()
-    return render_template('dashboard.html', total_questions=total_questions, recent_tests=recent_tests)
+    
+    # Fetch all test results for current user
+    user_results = TestResult.query.filter_by(user_id=current_user.id).order_by(TestResult.date_taken.desc()).all()
+    
+    total_tests = len(user_results)
+    avg_score = round(sum(r.percentage for r in user_results) / total_tests, 1) if total_tests > 0 else 0
+    
+    # Calculate performance by category
+    category_stats = {}
+    for r in user_results:
+        if r.category not in category_stats:
+            category_stats[r.category] = {'count': 0, 'total_pct': 0}
+        category_stats[r.category]['count'] += 1
+        category_stats[r.category]['total_pct'] += r.percentage
+        
+    for cat in category_stats:
+        category_stats[cat]['avg'] = round(category_stats[cat]['total_pct'] / category_stats[cat]['count'], 1)
+
+    return render_template(
+        'dashboard.html', 
+        total_questions=total_questions, 
+        recent_tests=user_results[:5],
+        total_tests=total_tests,
+        avg_score=avg_score,
+        category_stats=category_stats
+    )
 
 @app.route('/admin/questions')
 @login_required

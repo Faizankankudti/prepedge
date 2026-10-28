@@ -1,41 +1,102 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="p-5 mb-4 bg-white rounded-3 shadow-sm">
-    <div class="container-fluid py-3">
-        <h1 class="display-5 fw-bold">Welcome, {{ current_user.username }}!</h1>
-        <p class="col-md-8 fs-4 text-muted">Role: <span class="badge bg-info text-dark">{{ current_user.role|capitalize }}</span></p>
-        <hr class="my-4">
-        
-        {% if current_user.role == 'admin' %}
-            <div class="alert alert-primary mb-4">
-                <h5>Admin Control Panel</h5>
-                <p>Total Questions in Database: <strong>{{ total_questions }}</strong></p>
-                <a href="{{ url_for('admin_questions') }}" class="btn btn-primary">Manage Question Bank</a>
-            </div>
-        {% endif %}
+<div class="mb-4 p-4 bg-white rounded-3 shadow-sm">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h2 class="fw-bold mb-1">Welcome back, {{ current_user.username }}!</h2>
+            <p class="text-muted mb-0">Role: <span class="badge bg-info text-dark">{{ current_user.role|capitalize }}</span></p>
+        </div>
+        <a href="{{ url_for('test_selection') }}" class="btn btn-warning fw-bold">+ Start Practice Test</a>
+    </div>
+</div>
 
-        <div class="card shadow-sm mb-4">
-            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Recent Test Performances</h5>
-                <a href="{{ url_for('test_selection') }}" class="btn btn-warning btn-sm">Start New Test</a>
+{% if current_user.role == 'admin' %}
+    <div class="alert alert-primary mb-4 shadow-sm">
+        <h5 class="fw-bold">Admin Control Panel</h5>
+        <p class="mb-2">Total Questions in Database: <strong>{{ total_questions }}</strong></p>
+        <a href="{{ url_for('admin_questions') }}" class="btn btn-primary btn-sm">Manage Question Bank</a>
+    </div>
+{% endif %}
+
+<!-- Overview Stats Cards -->
+<div class="row mb-4">
+    <div class="col-md-6 mb-3">
+        <div class="card shadow-sm border-0 bg-primary text-white">
+            <div class="card-body p-4 text-center">
+                <h6 class="text-uppercase tracking-wide opacity-75">Total Tests Completed</h6>
+                <h1 class="display-4 fw-bold my-2">{{ total_tests }}</h1>
+                <small>Practice sessions finished</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 mb-3">
+        <div class="card shadow-sm border-0 {% if avg_score >= 60 %}bg-success{% else %}bg-secondary{% endif %} text-white">
+            <div class="card-body p-4 text-center">
+                <h6 class="text-uppercase tracking-wide opacity-75">Average Accuracy Score</h6>
+                <h1 class="display-4 fw-bold my-2">{{ avg_score }}%</h1>
+                <small>Across all completed categories</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Category Breakdown & Recent Activity -->
+<div class="row">
+    <!-- Category Breakdown -->
+    <div class="col-md-6 mb-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0">Category-Wise Accuracy</h5>
+            </div>
+            <div class="card-body">
+                {% if category_stats %}
+                    {% for cat, data in category_stats.items() %}
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between mb-1">
+                                <strong>{{ cat }}</strong>
+                                <span>{{ data.avg }}% ({{ data.count }} test{% if data.count > 1 %}s{% endif %})</span>
+                            </div>
+                            <div class="progress" style="height: 12px;">
+                                <div class="progress-bar {% if data.avg >= 75 %}bg-success{% elif data.avg >= 50 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                     role="progressbar" 
+                                     style="width: {{ data.avg }}%;" 
+                                     aria-valuenow="{{ data.avg }}" aria-valuemin="0" aria-valuemax="100">
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted mb-0">No performance data yet. Complete your first test to view category metrics.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Tests List -->
+    <div class="col-md-6 mb-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0">Recent Test History</h5>
             </div>
             <div class="card-body">
                 {% if recent_tests %}
                     <ul class="list-group list-group-flush">
                         {% for t in recent_tests %}
-                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <li class="list-group-item d-flex justify-content-between align-items-center px-0">
                                 <div>
-                                    <strong>{{ t.category }}</strong> - Score: {{ t.score }}/{{ t.total_questions }} ({{ t.percentage }}%)
+                                    <strong>{{ t.category }}</strong>
                                     <br><small class="text-muted">{{ t.date_taken.strftime('%b %d, %Y %I:%M %p') }}</small>
                                 </div>
-                                <span class="badge {% if t.percentage >= 60 %}bg-success{% else %}bg-danger{% endif %} rounded-pill">
-                                    {{ t.percentage }}%
-                                </span>
+                                <div class="text-end">
+                                    <span class="badge {% if t.percentage >= 60 %}bg-success{% else %}bg-danger{% endif %} rounded-pill">
+                                        {{ t.score }}/{{ t.total_questions }} ({{ t.percentage }}%)
+                                    </span>
+                                </div>
                             </li>
                         {% endfor %}
                     </ul>
                 {% else %}
-                    <p class="text-muted mb-0">No tests taken yet. Click "Start New Test" above to try your first test!</p>
+                    <p class="text-muted mb-0">No recent tests recorded.</p>
                 {% endif %}
             </div>
         </div>
