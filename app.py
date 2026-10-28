@@ -1,4 +1,5 @@
 import os
+from urllib.parse import unquote
 from flask import Flask, render_template, redirect, url_for, flash, request
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from models import db, User, Question, TestResult
@@ -193,7 +194,7 @@ def admin_questions():
 def add_question():
     if request.method == 'POST':
         q = Question(
-            category=request.form.get('category'),
+            category=request.form.get('category').strip(),
             company=request.form.get('company', 'General').strip(),
             question_text=request.form.get('question_text').strip(),
             option_a=request.form.get('option_a').strip(),
@@ -223,29 +224,31 @@ def delete_question(q_id):
 @login_required
 def test_selection():
     categories = db.session.query(Question.category).distinct().all()
-    category_list = [c[0] for c in categories]
+    category_list = [c[0] for c in categories if c[0]]
     return render_template('test_selection.html', categories=category_list)
 
-@app.route('/test/start/<category>')
+@app.route('/test/start/<path:category>')
 @login_required
 def start_test(category):
-    questions = Question.query.filter_by(category=category).all()
+    clean_category = unquote(category).strip()
+    questions = Question.query.filter(func.lower(Question.category) == func.lower(clean_category)).all()
     if not questions:
-        flash(f'No questions available for {category}.', 'warning')
+        flash(f'No questions available for {clean_category}.', 'warning')
         return redirect(url_for('test_selection'))
     time_limit_minutes = 2
     return render_template(
         'take_test.html', 
-        category=category, 
+        category=clean_category, 
         questions=questions, 
         time_limit=time_limit_minutes,
-        submit_url=url_for('submit_test', category=category)
+        submit_url=url_for('submit_test', category=clean_category)
     )
 
-@app.route('/test/submit/<category>', methods=['POST'])
+@app.route('/test/submit/<path:category>', methods=['POST'])
 @login_required
 def submit_test(category):
-    questions = Question.query.filter_by(category=category).all()
+    clean_category = unquote(category).strip()
+    questions = Question.query.filter(func.lower(Question.category) == func.lower(clean_category)).all()
     score = 0
     total = len(questions)
     review_data = []
@@ -266,7 +269,7 @@ def submit_test(category):
 
     result = TestResult(
         user_id=current_user.id,
-        category=category,
+        category=clean_category,
         total_questions=total,
         score=score,
         percentage=percentage
@@ -274,7 +277,7 @@ def submit_test(category):
     db.session.add(result)
     db.session.commit()
 
-    return render_template('test_result.html', category=category, score=score, total=total, percentage=percentage, review_data=review_data)
+    return render_template('test_result.html', category=clean_category, score=score, total=total, percentage=percentage, review_data=review_data)
 
 @app.route('/company-sets')
 @login_required
@@ -283,26 +286,28 @@ def company_selection():
     company_list = [c[0] for c in companies if c[0] and c[0] != 'General']
     return render_template('company_selection.html', companies=company_list)
 
-@app.route('/company-test/start/<company>')
+@app.route('/company-test/start/<path:company>')
 @login_required
 def start_company_test(company):
-    questions = Question.query.filter_by(company=company).all()
+    clean_company = unquote(company).strip()
+    questions = Question.query.filter(func.lower(Question.company) == func.lower(clean_company)).all()
     if not questions:
-        flash(f'No company-specific questions available for {company}.', 'warning')
+        flash(f'No company-specific questions available for {clean_company}.', 'warning')
         return redirect(url_for('company_selection'))
     time_limit_minutes = 3
     return render_template(
         'take_test.html', 
-        category=f"{company} Special", 
+        category=f"{clean_company} Special", 
         questions=questions, 
         time_limit=time_limit_minutes,
-        submit_url=url_for('submit_company_test', company=company)
+        submit_url=url_for('submit_company_test', company=clean_company)
     )
 
-@app.route('/company-test/submit/<company>', methods=['POST'])
+@app.route('/company-test/submit/<path:company>', methods=['POST'])
 @login_required
 def submit_company_test(company):
-    questions = Question.query.filter_by(company=company).all()
+    clean_company = unquote(company).strip()
+    questions = Question.query.filter(func.lower(Question.company) == func.lower(clean_company)).all()
     score = 0
     total = len(questions)
     review_data = []
@@ -323,7 +328,7 @@ def submit_company_test(company):
 
     result = TestResult(
         user_id=current_user.id,
-        category=f"{company} Special",
+        category=f"{clean_company} Special",
         total_questions=total,
         score=score,
         percentage=percentage
@@ -331,7 +336,7 @@ def submit_company_test(company):
     db.session.add(result)
     db.session.commit()
 
-    return render_template('test_result.html', category=f"{company} Special", score=score, total=total, percentage=percentage, review_data=review_data)
+    return render_template('test_result.html', category=f"{clean_company} Special", score=score, total=total, percentage=percentage, review_data=review_data)
 
 @app.route('/leaderboard')
 @login_required
