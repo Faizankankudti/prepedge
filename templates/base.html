@@ -3,43 +3,88 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PrepEdge - Placement Preparation</title>
+    <title>PrepEdge - Placement Preparation Platform</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .navbar-brand {
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+    </style>
 </head>
-<body class="bg-light">
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
         <div class="container">
-            <a class="navbar-brand fw-bold" href="{{ url_for('dashboard') }}">PrepEdge</a>
-            <div>
-                {% if current_user.is_authenticated %}
-                    <a href="{{ url_for('test_selection') }}" class="btn btn-outline-warning btn-sm me-2">Practice Tests</a>
-                    <a href="{{ url_for('company_selection') }}" class="btn btn-outline-success btn-sm me-2">Company Sets</a>
-                    <a href="{{ url_for('leaderboard') }}" class="btn btn-outline-info btn-sm me-2">🏆 Leaderboard</a>
+            <a class="navbar-brand text-primary" href="{{ url_for('home') }}">PrepEdge</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    {% if current_user.is_authenticated %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('dashboard') }}">Dashboard</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('test_selection') }}">Practice Tests</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('company_selection') }}">Company Sets</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('leaderboard') }}">Leaderboard</a>
+                    </li>
                     {% if current_user.role == 'admin' %}
-                        <a href="{{ url_for('admin_questions') }}" class="btn btn-outline-light btn-sm me-2">Question Bank</a>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('admin_questions') }}">Manage Questions</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('admin_approvals') }}">Admin Approvals</a>
+                    </li>
                     {% endif %}
-                    <span class="text-light me-3">Welcome, {{ current_user.username }} ({{ current_user.role }})</span>
-                    <a href="{{ url_for('logout') }}" class="btn btn-outline-light btn-sm">Logout</a>
-                {% else %}
-                    <a href="{{ url_for('login') }}" class="btn btn-outline-light btn-sm me-2">Login</a>
-                    <a href="{{ url_for('register') }}" class="btn btn-primary btn-sm">Register</a>
-                {% endif %}
+                    {% endif %}
+                </ul>
+                <ul class="navbar-nav">
+                    {% if current_user.is_authenticated %}
+                    <li class="nav-item d-flex align-items-center me-3 text-light">
+                        <span>Welcome, <strong>{{ current_user.username }}</strong> ({{ current_user.role|capitalize }})</span>
+                    </li>
+                    <li class="nav-item">
+                        <a class="btn btn-outline-light btn-sm my-1" href="{{ url_for('logout') }}">Logout</a>
+                    </li>
+                    {% else %}
+                    <li class="nav-item me-2">
+                        <a class="btn btn-outline-light btn-sm my-1" href="{{ url_for('login') }}">Login</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="btn btn-primary btn-sm my-1" href="{{ url_for('register') }}">Register</a>
+                    </li>
+                    {% endif %}
+                </ul>
             </div>
         </div>
     </nav>
+
     <div class="container mt-4">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
-                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm" role="alert">
                         {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
                 {% endfor %}
             {% endif %}
         {% endwith %}
-        {% block content %}{% endblock %}
+
+        {% block content %}
+        {% endblock %}
     </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
