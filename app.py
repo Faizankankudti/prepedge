@@ -11,21 +11,24 @@ app.config['SECRET_KEY'] = 'prepedge-secret-key-change-in-prod'
 # Super Admin Passcode
 ADMIN_SECRET_KEY = os.environ.get('ADMIN_SECRET_KEY', 'PREPEDGE_ADMIN_2026')
 
-# Handle database URL configuration cleanly
+# Database Configuration
 db_url = os.environ.get('DATABASE_URL')
 if db_url:
     if db_url.startswith("postgres://"):
         db_url = db_url.replace("postgres://", "postgresql://", 1)
-    # Remove channel_binding parameter if present to avoid driver handshake issues on Vercel
-    if "&channel_binding=require" in db_url:
-        db_url = db_url.replace("&channel_binding=require", "")
-    elif "?channel_binding=require" in db_url:
-        db_url = db_url.replace("?channel_binding=require", "")
+    # Strip parameters that break psycopg2 SSL handshake on Vercel lambda
+    if "?" in db_url:
+        base_url = db_url.split("?")[0]
+        db_url = f"{base_url}?sslmode=require"
     app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 else:
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///prepedge.db'
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    "pool_pre_ping": True,
+    "pool_recycle": 300,
+}
 
 db.init_app(app)
 login_manager = LoginManager(app)
@@ -44,12 +47,15 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-# Auto-create tables and schema on database connection
-with app.app_context():
-    try:
-        db.create_all()
-    except Exception as e:
-        print("Database sync error:", e)
+# Create tables before first request handling
+@app.before_request
+def create_tables():
+    if not getattr(app, '_database_initialized', False):
+        try:
+            db.create_all()
+            app._database_initialized = True
+        except Exception as e:
+            print("DB init error:", e)
 
 @app.route('/')
 def home():
