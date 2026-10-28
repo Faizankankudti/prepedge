@@ -11,19 +11,17 @@ app.config['SECRET_KEY'] = 'prepedge-secret-key-change-in-prod'
 # Super Admin Passcode
 ADMIN_SECRET_KEY = os.environ.get('ADMIN_SECRET_KEY', 'PREPEDGE_ADMIN_2026')
 
-# Database Configuration
+# Database Connection Setup
 db_url = os.environ.get('DATABASE_URL')
 if db_url:
     if db_url.startswith("postgres://"):
         db_url = db_url.replace("postgres://", "postgresql://", 1)
     
-    # Ensure sslmode=require without conflicting flags
+    # Strip query parameters that break SSL/pooling in psycopg2
     if "?" in db_url:
-        base_url = db_url.split("?")[0]
-        db_url = f"{base_url}?sslmode=require"
-    else:
-        db_url = f"{db_url}?sslmode=require"
-        
+        db_url = db_url.split("?")[0]
+    
+    db_url = f"{db_url}?sslmode=require"
     app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 else:
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///prepedge.db'
@@ -47,17 +45,15 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-@app.before_request
-def initialize_database():
-    if not getattr(app, '_db_created', False):
-        try:
-            db.create_all()
-            with db.engine.connect() as conn:
-                conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS is_approved BOOLEAN DEFAULT TRUE;'))
-                conn.commit()
-            app._db_created = True
-        except Exception as e:
-            print("Database setup log:", e)
+# Run schema migrations once safely during app startup
+with app.app_context():
+    try:
+        db.create_all()
+        with db.engine.connect() as conn:
+            conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS is_approved BOOLEAN DEFAULT TRUE;'))
+            conn.commit()
+    except Exception as e:
+        print("Startup schema initialization log:", e)
 
 @app.route('/')
 def home():
@@ -70,34 +66,44 @@ def register():
     if current_user.is_authenticated:
         return redirect(url_for('dashboard'))
     if request.method == 'POST':
-        username = request.form.get('username', '').strip()
-        email = request.form.get('email', '').strip()
-        password = request.form.get('password')
-        role = request.form.get('role', 'student')
-        admin_key = request.form.get('admin_key', '').strip()
+        try:
+            username = request.form.get('username', '').strip()
+            email = request.form.get('email', '').strip()
+            password = request.form.get('password')
+            role = request.form.get('role', 'student')
+            admin_key = request.form.get('admin_key', '').strip()
 
-        if User.query.filter_by(username=username).first():
-            flash('Username already exists.', 'danger')
-            return redirect(url_for('register'))
-        if User.query.filter_by(email=email).first():
-            flash('Email already registered.', 'danger')
-            return redirect(url_for('register'))
+            if User.query.filter_by(username=username).first():
+                flash('Username already exists.', 'danger')
+                return redirect(url_for('register'))
+            if User.query.filter_by(email=email).first():
+                flash('Email already registered.', 'danger')
+                return redirect(url_for('register'))
 
-        is_approved = True
-        if role == 'admin':
-            if admin_key == ADMIN_SECRET_KEY:
-                is_approved = True
-                flash('Super Admin verified! Account approved instantly.', 'success')
+            is_approved = True
+            if role == 'admin':
+                if admin_key == ADMIN_SECRET_KEY:
+                    is_approved = True
+                    flash('Super Admin verified! Account created and approved.', 'success')
+                else:
+                    is_approved = False
+                    flash('Admin registration submitted! Pending approval from existing admin.', 'info')
             else:
-                is_approved = False
-                flash('Admin registration submitted! Awaiting approval from existing Super Admin.', 'info')
+                flash('Registration successful! Please login.', 'success')
 
-        user = User(username=username, email=email, role=role, is_approved=is_approved)
-        user.set_password(password)
-        db.session.add(user)
-        db.session.commit()
+            user = User(username=username, email=email, role=role, is_approved=is_approved)
+            user.set_password(password)
+            db.session.add(user)
+            db.session.commit()
 
-        return redirect(url_for('login'))
+            return redirect(url_for('login'))
+
+        except Exception as e:
+            db.session.rollback()
+            print("Registration Error:", e)
+            flash(f"Error during registration: {str(e)}", "danger")
+            return redirect(url_for('register'))
+
     return render_template('register.html')
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -110,8 +116,8 @@ def login():
         user = User.query.filter_by(username=username).first()
 
         if user and user.check_password(password):
-            if not user.is_approved:
-                flash('Your admin account is currently pending approval by a Super Admin.', 'warning')
+            if not getattr(user, 'is_approved', True):
+                flash('Your admin account is pending approval.', 'warning')
                 return redirect(url_for('login'))
             login_user(user)
             return redirect(url_for('dashboard'))
