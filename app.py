@@ -80,13 +80,11 @@ def login():
 def dashboard():
     total_questions = Question.query.count() if current_user.role == 'admin' else 0
     
-    # Fetch all test results for current user
     user_results = TestResult.query.filter_by(user_id=current_user.id).order_by(TestResult.date_taken.desc()).all()
     
     total_tests = len(user_results)
     avg_score = round(sum(r.percentage for r in user_results) / total_tests, 1) if total_tests > 0 else 0
     
-    # Calculate performance by category
     category_stats = {}
     for r in user_results:
         if r.category not in category_stats:
@@ -145,7 +143,6 @@ def delete_question(q_id):
     flash('Question deleted successfully.', 'info')
     return redirect(url_for('admin_questions'))
 
-# --- SPRINT 3: TEST ENGINE & EVALUATION ---
 @app.route('/tests')
 @login_required
 def test_selection():
@@ -160,9 +157,14 @@ def start_test(category):
     if not questions:
         flash(f'No questions available for {category}.', 'warning')
         return redirect(url_for('test_selection'))
-    # 2 minutes per test for practice
     time_limit_minutes = 2
-    return render_template('take_test.html', category=category, questions=questions, time_limit=time_limit_minutes)
+    return render_template(
+        'take_test.html', 
+        category=category, 
+        questions=questions, 
+        time_limit=time_limit_minutes,
+        submit_url=url_for('submit_test', category=category)
+    )
 
 @app.route('/test/submit/<category>', methods=['POST'])
 @login_required
@@ -197,6 +199,63 @@ def submit_test(category):
     db.session.commit()
 
     return render_template('test_result.html', category=category, score=score, total=total, percentage=percentage, review_data=review_data)
+
+@app.route('/company-sets')
+@login_required
+def company_selection():
+    companies = db.session.query(Question.company).distinct().all()
+    company_list = [c[0] for c in companies if c[0] and c[0] != 'General']
+    return render_template('company_selection.html', companies=company_list)
+
+@app.route('/company-test/start/<company>')
+@login_required
+def start_company_test(company):
+    questions = Question.query.filter_by(company=company).all()
+    if not questions:
+        flash(f'No company-specific questions available for {company}.', 'warning')
+        return redirect(url_for('company_selection'))
+    time_limit_minutes = 3
+    return render_template(
+        'take_test.html', 
+        category=f"{company} Special", 
+        questions=questions, 
+        time_limit=time_limit_minutes,
+        submit_url=url_for('submit_company_test', company=company)
+    )
+
+@app.route('/company-test/submit/<company>', methods=['POST'])
+@login_required
+def submit_company_test(company):
+    questions = Question.query.filter_by(company=company).all()
+    score = 0
+    total = len(questions)
+    review_data = []
+
+    for q in questions:
+        selected_option = request.form.get(f'question_{q.id}')
+        is_correct = (selected_option == q.correct_option)
+        if is_correct:
+            score += 1
+        
+        review_data.append({
+            'question': q,
+            'selected': selected_option,
+            'is_correct': is_correct
+        })
+
+    percentage = round((score / total) * 100, 2) if total > 0 else 0
+
+    result = TestResult(
+        user_id=current_user.id,
+        category=f"{company} Special",
+        total_questions=total,
+        score=score,
+        percentage=percentage
+    )
+    db.session.add(result)
+    db.session.commit()
+
+    return render_template('test_result.html', category=f"{company} Special", score=score, total=total, percentage=percentage, review_data=review_data)
 
 @app.route('/logout')
 @login_required
