@@ -3,7 +3,7 @@ from flask import Flask, render_template, redirect, url_for, flash, request
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from models import db, User, Question, TestResult
 from functools import wraps
-from sqlalchemy import func
+from sqlalchemy import func, text
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'prepedge-secret-key-change-in-prod'
@@ -14,13 +14,11 @@ ADMIN_SECRET_KEY = os.environ.get('ADMIN_SECRET_KEY', 'PREPEDGE_ADMIN_2026')
 # Database Configuration with Pure-Python pg8000 driver
 db_url = os.environ.get('DATABASE_URL')
 if db_url:
-    # Convert scheme to postgresql+pg8000://
     if db_url.startswith("postgres://"):
         db_url = db_url.replace("postgres://", "postgresql+pg8000://", 1)
     elif db_url.startswith("postgresql://"):
         db_url = db_url.replace("postgresql://", "postgresql+pg8000://", 1)
     
-    # Clean query parameters for pg8000
     if "?" in db_url:
         db_url = db_url.split("?")[0]
         
@@ -52,9 +50,13 @@ def initialize_database():
     if not getattr(app, '_db_created', False):
         try:
             db.create_all()
+            # Safely add the 'is_approved' column if missing from existing schema
+            with db.engine.connect() as conn:
+                conn.execute(text("ALTER TABLE \"user\" ADD COLUMN IF NOT EXISTS is_approved BOOLEAN DEFAULT TRUE;"))
+                conn.commit()
             app._db_created = True
         except Exception as e:
-            print("Database creation error:", e)
+            print("Database migration error:", e)
 
 @app.route('/')
 def home():
