@@ -1,37 +1,53 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-5">
-        <div class="card shadow-sm mt-4">
+<div class="row justify-content-center mt-4">
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0">
             <div class="card-body p-4">
-                <h3 class="card-title text-center mb-4">Create PrepEdge Account</h3>
-                <form method="POST">
+                <h3 class="text-center mb-4 fw-bold">Create a PrepEdge Account</h3>
+                <form method="POST" action="{{ url_for('register') }}">
                     <div class="mb-3">
-                        <label class="form-label">Username</label>
-                        <input type="text" name="username" class="form-control" required>
+                        <label for="username" class="form-label">Username</label>
+                        <input type="text" class="form-control" id="username" name="username" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Email</label>
-                        <input type="email" name="email" class="form-control" required>
+                        <label for="email" class="form-label">Email Address</label>
+                        <input type="email" class="form-control" id="email" name="email" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Password</label>
-                        <input type="password" name="password" class="form-control" required>
+                        <label for="password" class="form-label">Password</label>
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="password" name="password" required>
+                            <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                                👁️
+                            </button>
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Account Role</label>
-                        <select name="role" class="form-select">
-                            <option value="student">Student</option>
+                    <div class="mb-4">
+                        <label for="role" class="form-label">Account Type</label>
+                        <select class="form-select" id="role" name="role">
+                            <option value="student" selected>Student</option>
                             <option value="admin">Admin</option>
                         </select>
                     </div>
-                    <button type="submit" class="btn btn-primary w-100">Register</button>
+                    <button type="submit" class="btn btn-primary w-100 py-2 fw-bold">Register</button>
                 </form>
                 <div class="text-center mt-3">
-                    <small>Already have an account? <a href="{{ url_for('login') }}">Login here</a></small>
+                    <small>Already registered? <a href="{{ url_for('login') }}">Login here</a></small>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+    const togglePassword = document.getElementById('togglePassword');
+    const passwordInput = document.getElementById('password');
+
+    togglePassword.addEventListener('click', function () {
+        const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+        passwordInput.setAttribute('type', type);
+        this.textContent = type === 'password' ? '👁️' : '🙈';
+    });
+</script>
 {% endblock %}
