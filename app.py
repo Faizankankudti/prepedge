@@ -8,9 +8,20 @@ from sqlalchemy import func
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'prepedge-secret-key-change-in-prod'
 
-# Use writable /tmp directory on Vercel serverless environment, local SQLite path otherwise
-if os.environ.get('VERCEL'):
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////tmp/prepedge.db'
+# Super Admin Passcode
+ADMIN_SECRET_KEY = os.environ.get('ADMIN_SECRET_KEY', 'PREPEDGE_ADMIN_2026')
+
+# Handle database URL configuration cleanly
+db_url = os.environ.get('DATABASE_URL')
+if db_url:
+    if db_url.startswith("postgres://"):
+        db_url = db_url.replace("postgres://", "postgresql://", 1)
+    # Remove channel_binding parameter if present to avoid driver handshake issues on Vercel
+    if "&channel_binding=require" in db_url:
+        db_url = db_url.replace("&channel_binding=require", "")
+    elif "?channel_binding=require" in db_url:
+        db_url = db_url.replace("?channel_binding=require", "")
+    app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 else:
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///prepedge.db'
 
@@ -27,14 +38,18 @@ def load_user(user_id):
 def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated or current_user.role != 'admin':
+        if not current_user.is_authenticated or current_user.role != 'admin' or not current_user.is_approved:
             flash('Admin authorization required.', 'danger')
             return redirect(url_for('dashboard'))
         return f(*args, **kwargs)
     return decorated_function
 
+# Auto-create tables and schema on database connection
 with app.app_context():
-    db.create_all()
+    try:
+        db.create_all()
+    except Exception as e:
+        print("Database sync error:", e)
 
 @app.route('/')
 def home():
@@ -51,6 +66,7 @@ def register():
         email = request.form.get('email').strip()
         password = request.form.get('password')
         role = request.form.get('role', 'student')
+        admin_key = request.form.get('admin_key', '').strip()
 
         if User.query.filter_by(username=username).first():
             flash('Username already exists.', 'danger')
@@ -59,11 +75,20 @@ def register():
             flash('Email already registered.', 'danger')
             return redirect(url_for('register'))
 
-        user = User(username=username, email=email, role=role)
+        is_approved = True
+        if role == 'admin':
+            if admin_key == ADMIN_SECRET_KEY:
+                is_approved = True
+                flash('Super Admin verified! Account approved instantly.', 'success')
+            else:
+                is_approved = False
+                flash('Admin registration submitted! Awaiting approval from existing Super Admin.', 'info')
+
+        user = User(username=username, email=email, role=role, is_approved=is_approved)
         user.set_password(password)
         db.session.add(user)
         db.session.commit()
-        flash('Registration successful! Please login.', 'success')
+
         return redirect(url_for('login'))
     return render_template('register.html')
 
@@ -77,6 +102,9 @@ def login():
         user = User.query.filter_by(username=username).first()
 
         if user and user.check_password(password):
+            if not user.is_approved:
+                flash('Your admin account is currently pending approval by a Super Admin.', 'warning')
+                return redirect(url_for('login'))
             login_user(user)
             return redirect(url_for('dashboard'))
         else:
@@ -87,6 +115,7 @@ def login():
 @login_required
 def dashboard():
     total_questions = Question.query.count() if current_user.role == 'admin' else 0
+    pending_approvals = User.query.filter_by(role='admin', is_approved=False).count() if current_user.role == 'admin' else 0
     
     user_results = TestResult.query.filter_by(user_id=current_user.id).order_by(TestResult.date_taken.desc()).all()
     
@@ -106,11 +135,40 @@ def dashboard():
     return render_template(
         'dashboard.html', 
         total_questions=total_questions, 
+        pending_approvals=pending_approvals,
         recent_tests=user_results[:5],
         total_tests=total_tests,
         avg_score=avg_score,
         category_stats=category_stats
     )
+
+@app.route('/admin/approvals')
+@login_required
+@admin_required
+def admin_approvals():
+    pending_admins = User.query.filter_by(role='admin', is_approved=False).all()
+    approved_admins = User.query.filter_by(role='admin', is_approved=True).all()
+    return render_template('admin_approvals.html', pending_admins=pending_admins, approved_admins=approved_admins)
+
+@app.route('/admin/approve/<int:user_id>', methods=['POST'])
+@login_required
+@admin_required
+def approve_admin(user_id):
+    user = User.query.get_or_404(user_id)
+    user.is_approved = True
+    db.session.commit()
+    flash(f'Admin access granted for {user.username}.', 'success')
+    return redirect(url_for('admin_approvals'))
+
+@app.route('/admin/reject/<int:user_id>', methods=['POST'])
+@login_required
+@admin_required
+def reject_admin(user_id):
+    user = User.query.get_or_404(user_id)
+    db.session.delete(user)
+    db.session.commit()
+    flash(f'Admin request for {user.username} rejected and removed.', 'info')
+    return redirect(url_for('admin_approvals'))
 
 @app.route('/admin/questions')
 @login_required
