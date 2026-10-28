@@ -17,7 +17,6 @@ if db_url:
     if db_url.startswith("postgres://"):
         db_url = db_url.replace("postgres://", "postgresql://", 1)
     
-    # Strip query parameters that break SSL/pooling in psycopg2
     if "?" in db_url:
         db_url = db_url.split("?")[0]
     
@@ -45,7 +44,7 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-# Run schema migrations once safely during app startup
+# One-time database setup on application boot
 with app.app_context():
     try:
         db.create_all()
@@ -53,7 +52,7 @@ with app.app_context():
             conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS is_approved BOOLEAN DEFAULT TRUE;'))
             conn.commit()
     except Exception as e:
-        print("Startup schema initialization log:", e)
+        print("Database startup initialization:", e)
 
 @app.route('/')
 def home():
@@ -80,15 +79,19 @@ def register():
                 flash('Email already registered.', 'danger')
                 return redirect(url_for('register'))
 
-            is_approved = True
+            # Check if any approved admin exists in the system
+            existing_admin = User.query.filter_by(role='admin', is_approved=True).first()
+
             if role == 'admin':
-                if admin_key == ADMIN_SECRET_KEY:
+                # Auto-approve if key matches OR if this is the first admin account
+                if admin_key == ADMIN_SECRET_KEY or not existing_admin:
                     is_approved = True
-                    flash('Super Admin verified! Account created and approved.', 'success')
+                    flash('Super Admin account created and approved!', 'success')
                 else:
                     is_approved = False
-                    flash('Admin registration submitted! Pending approval from existing admin.', 'info')
+                    flash('Admin registration submitted! Awaiting approval from an existing Super Admin.', 'info')
             else:
+                is_approved = True
                 flash('Registration successful! Please login.', 'success')
 
             user = User(username=username, email=email, role=role, is_approved=is_approved)
@@ -101,7 +104,7 @@ def register():
         except Exception as e:
             db.session.rollback()
             print("Registration Error:", e)
-            flash(f"Error during registration: {str(e)}", "danger")
+            flash(f"Error creating account: {str(e)}", "danger")
             return redirect(url_for('register'))
 
     return render_template('register.html')
@@ -116,8 +119,9 @@ def login():
         user = User.query.filter_by(username=username).first()
 
         if user and user.check_password(password):
-            if not getattr(user, 'is_approved', True):
-                flash('Your admin account is pending approval.', 'warning')
+            # Explicit check for admin approval status
+            if user.role == 'admin' and not user.is_approved:
+                flash('Your admin account is currently pending approval by a Super Admin.', 'warning')
                 return redirect(url_for('login'))
             login_user(user)
             return redirect(url_for('dashboard'))
