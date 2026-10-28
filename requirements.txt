@@ -15,4 +15,4 @@ pytest==9.1.1
 SQLAlchemy==2.0.38
 typing_extensions==4.12.2
 Werkzeug==3.1.9
-pg8000
+psycopg2-binary

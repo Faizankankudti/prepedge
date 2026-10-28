@@ -11,16 +11,18 @@ app.config['SECRET_KEY'] = 'prepedge-secret-key-change-in-prod'
 # Super Admin Passcode
 ADMIN_SECRET_KEY = os.environ.get('ADMIN_SECRET_KEY', 'PREPEDGE_ADMIN_2026')
 
-# Database Configuration with Pure-Python pg8000 driver
+# Database Configuration
 db_url = os.environ.get('DATABASE_URL')
 if db_url:
     if db_url.startswith("postgres://"):
-        db_url = db_url.replace("postgres://", "postgresql+pg8000://", 1)
-    elif db_url.startswith("postgresql://"):
-        db_url = db_url.replace("postgresql://", "postgresql+pg8000://", 1)
+        db_url = db_url.replace("postgres://", "postgresql://", 1)
     
+    # Ensure sslmode=require without conflicting flags
     if "?" in db_url:
-        db_url = db_url.split("?")[0]
+        base_url = db_url.split("?")[0]
+        db_url = f"{base_url}?sslmode=require"
+    else:
+        db_url = f"{db_url}?sslmode=require"
         
     app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 else:
@@ -50,13 +52,12 @@ def initialize_database():
     if not getattr(app, '_db_created', False):
         try:
             db.create_all()
-            # Safely add the 'is_approved' column if missing from existing schema
             with db.engine.connect() as conn:
-                conn.execute(text("ALTER TABLE \"user\" ADD COLUMN IF NOT EXISTS is_approved BOOLEAN DEFAULT TRUE;"))
+                conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS is_approved BOOLEAN DEFAULT TRUE;'))
                 conn.commit()
             app._db_created = True
         except Exception as e:
-            print("Database migration error:", e)
+            print("Database setup log:", e)
 
 @app.route('/')
 def home():
@@ -69,8 +70,8 @@ def register():
     if current_user.is_authenticated:
         return redirect(url_for('dashboard'))
     if request.method == 'POST':
-        username = request.form.get('username').strip()
-        email = request.form.get('email').strip()
+        username = request.form.get('username', '').strip()
+        email = request.form.get('email', '').strip()
         password = request.form.get('password')
         role = request.form.get('role', 'student')
         admin_key = request.form.get('admin_key', '').strip()
@@ -104,7 +105,7 @@ def login():
     if current_user.is_authenticated:
         return redirect(url_for('dashboard'))
     if request.method == 'POST':
-        username = request.form.get('username').strip()
+        username = request.form.get('username', '').strip()
         password = request.form.get('password')
         user = User.query.filter_by(username=username).first()
 
