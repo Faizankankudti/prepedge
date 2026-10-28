@@ -11,15 +11,13 @@ app.config['SECRET_KEY'] = 'prepedge-secret-key-change-in-prod'
 # Super Admin Passcode
 ADMIN_SECRET_KEY = os.environ.get('ADMIN_SECRET_KEY', 'PREPEDGE_ADMIN_2026')
 
-# Database Connection Setup
+# Database Configuration
 db_url = os.environ.get('DATABASE_URL')
 if db_url:
     if db_url.startswith("postgres://"):
         db_url = db_url.replace("postgres://", "postgresql://", 1)
-    
     if "?" in db_url:
         db_url = db_url.split("?")[0]
-    
     db_url = f"{db_url}?sslmode=require"
     app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 else:
@@ -44,7 +42,6 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-# One-time database setup on application boot
 with app.app_context():
     try:
         db.create_all()
@@ -52,7 +49,7 @@ with app.app_context():
             conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS is_approved BOOLEAN DEFAULT TRUE;'))
             conn.commit()
     except Exception as e:
-        print("Database startup initialization:", e)
+        print("Database schema sync:", e)
 
 @app.route('/')
 def home():
@@ -79,11 +76,9 @@ def register():
                 flash('Email already registered.', 'danger')
                 return redirect(url_for('register'))
 
-            # Check if any approved admin exists in the system
             existing_admin = User.query.filter_by(role='admin', is_approved=True).first()
 
             if role == 'admin':
-                # Auto-approve if key matches OR if this is the first admin account
                 if admin_key == ADMIN_SECRET_KEY or not existing_admin:
                     is_approved = True
                     flash('Super Admin account created and approved!', 'success')
@@ -103,7 +98,6 @@ def register():
 
         except Exception as e:
             db.session.rollback()
-            print("Registration Error:", e)
             flash(f"Error creating account: {str(e)}", "danger")
             return redirect(url_for('register'))
 
@@ -119,7 +113,6 @@ def login():
         user = User.query.filter_by(username=username).first()
 
         if user and user.check_password(password):
-            # Explicit check for admin approval status
             if user.role == 'admin' and not user.is_approved:
                 flash('Your admin account is currently pending approval by a Super Admin.', 'warning')
                 return redirect(url_for('login'))
@@ -134,7 +127,6 @@ def login():
 def dashboard():
     total_questions = Question.query.count() if current_user.role == 'admin' else 0
     pending_approvals = User.query.filter_by(role='admin', is_approved=False).count() if current_user.role == 'admin' else 0
-    
     user_results = TestResult.query.filter_by(user_id=current_user.id).order_by(TestResult.date_taken.desc()).all()
     
     total_tests = len(user_results)
