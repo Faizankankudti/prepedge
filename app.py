@@ -11,15 +11,19 @@ app.config['SECRET_KEY'] = 'prepedge-secret-key-change-in-prod'
 # Super Admin Passcode
 ADMIN_SECRET_KEY = os.environ.get('ADMIN_SECRET_KEY', 'PREPEDGE_ADMIN_2026')
 
-# Clean Database Connection String for psycopg2
+# Database Configuration with Pure-Python pg8000 driver
 db_url = os.environ.get('DATABASE_URL')
 if db_url:
+    # Convert scheme to postgresql+pg8000://
     if db_url.startswith("postgres://"):
-        db_url = db_url.replace("postgres://", "postgresql://", 1)
-    # Strip unnecessary connection options that disrupt Vercel Serverless handshake
+        db_url = db_url.replace("postgres://", "postgresql+pg8000://", 1)
+    elif db_url.startswith("postgresql://"):
+        db_url = db_url.replace("postgresql://", "postgresql+pg8000://", 1)
+    
+    # Clean query parameters for pg8000
     if "?" in db_url:
-        base_url = db_url.split("?")[0]
-        db_url = f"{base_url}?sslmode=require"
+        db_url = db_url.split("?")[0]
+        
     app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 else:
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///prepedge.db'
