@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="mb-4">
+    <h2 class="fw-bold">Company-Wise Practice Sets</h2>
+    <p class="text-muted">Target specific company recruitment patterns and exam structures.</p>
+</div>
+
+{% if companies %}
+<div class="row">
+    {% for company in companies %}
+    <div class="col-md-4 mb-4">
+        <div class="card shadow-sm h-100 border-0">
+            <div class="card-body p-4 text-center d-flex flex-column justify-content-between">
+                <div>
+                    <span class="badge bg-success mb-2 px-3 py-2 fs-6">{{ company }} Pattern</span>
+                    <h4 class="card-title fw-bold text-dark mt-2">{{ company }} Placement Set</h4>
+                    <p class="text-muted small">Curated aptitude questions tailored to past {{ company }} hiring assessments.</p>
+                </div>
+                <a href="{{ url_for('start_company_test', company=company) }}" class="btn btn-success fw-bold mt-3">Start {{ company }} Test</a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="alert alert-info shadow-sm p-4">
+    <h5>No Company Practice Sets Available Yet</h5>
+    <p class="mb-0">Log in as an admin to add questions tagged with company names (e.g., TCS, Infosys, Wipro)!</p>
+</div>
+{% endif %}
+{% endblock %}
