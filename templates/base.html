@@ -14,8 +14,9 @@
                 {% if current_user.is_authenticated %}
                     <a href="{{ url_for('test_selection') }}" class="btn btn-outline-warning btn-sm me-2">Practice Tests</a>
                     <a href="{{ url_for('company_selection') }}" class="btn btn-outline-success btn-sm me-2">Company Sets</a>
+                    <a href="{{ url_for('leaderboard') }}" class="btn btn-outline-info btn-sm me-2">🏆 Leaderboard</a>
                     {% if current_user.role == 'admin' %}
-                        <a href="{{ url_for('admin_questions') }}" class="btn btn-outline-info btn-sm me-2">Question Bank</a>
+                        <a href="{{ url_for('admin_questions') }}" class="btn btn-outline-light btn-sm me-2">Question Bank</a>
                     {% endif %}
                     <span class="text-light me-3">Welcome, {{ current_user.username }} ({{ current_user.role }})</span>
                     <a href="{{ url_for('logout') }}" class="btn btn-outline-light btn-sm">Logout</a>

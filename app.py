@@ -2,6 +2,7 @@ from flask import Flask, render_template, redirect, url_for, flash, request
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from models import db, User, Question, TestResult
 from functools import wraps
+from sqlalchemy import func
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'prepedge-secret-key-change-in-prod'
@@ -256,6 +257,32 @@ def submit_company_test(company):
     db.session.commit()
 
     return render_template('test_result.html', category=f"{company} Special", score=score, total=total, percentage=percentage, review_data=review_data)
+
+@app.route('/leaderboard')
+@login_required
+def leaderboard():
+    # Query student stats aggregating total tests, total score, total potential score, and average accuracy
+    leaderboard_query = db.session.query(
+        User.username,
+        func.count(TestResult.id).label('tests_taken'),
+        func.sum(TestResult.score).label('total_score'),
+        func.avg(TestResult.percentage).label('avg_percentage')
+    ).join(TestResult, User.id == TestResult.user_id)\
+     .group_by(User.id)\
+     .order_by(func.avg(TestResult.percentage).desc(), func.count(TestResult.id).desc())\
+     .all()
+
+    formatted_leaderboard = []
+    for rank, row in enumerate(leaderboard_query, start=1):
+        formatted_leaderboard.append({
+            'rank': rank,
+            'username': row.username,
+            'tests_taken': row.tests_taken,
+            'total_score': row.total_score,
+            'avg_percentage': round(row.avg_percentage, 1)
+        })
+
+    return render_template('leaderboard.html', leaderboard=formatted_leaderboard)
 
 @app.route('/logout')
 @login_required
